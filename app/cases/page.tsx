@@ -10,12 +10,15 @@ import { getCases } from '@/lib/api';
 import { Case } from '@/types';
 import { Search, Filter, Folder } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { Toast } from '@/components/ui/Toast';
 
 export default function CasesPage() {
   const router = useRouter();
   const [cases, setCases] = useState<Case[]>([]);
   const [filteredCases, setFilteredCases] = useState<Case[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Filter & Search states
   const [searchQuery, setSearchQuery] = useState('');
@@ -55,10 +58,12 @@ export default function CasesPage() {
   const loadCases = async () => {
     try {
       setIsLoading(true);
+      setLoadError(null);
       const data = await getCases();
       setCases(data);
     } catch (err) {
       console.error('Failed to fetch cases:', err);
+      setLoadError(err instanceof Error ? err.message : 'Unable to load cases.');
     } finally {
       setIsLoading(false);
     }
@@ -124,10 +129,8 @@ export default function CasesPage() {
           </div>
 
           {/* Cases Grid */}
-          {isLoading ? (
-            <div className="p-12 text-center bg-white rounded-xl text-xs text-mid animate-pulse">
-              Loading active cases...
-            </div>
+          {loadError ? <Toast message={loadError} kind="error" onClose={() => setLoadError(null)} /> : isLoading ? (
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">{[1, 2, 3, 4, 5, 6].map((item) => <Skeleton key={item} className="h-64" />)}</div>
           ) : filteredCases.length === 0 ? (
             <div className="p-12 text-center bg-white rounded-xl border border-gray-200">
               <p className="text-xs font-semibold text-mid">No matching cases found.</p>

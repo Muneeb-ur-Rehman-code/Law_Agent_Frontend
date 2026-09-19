@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, CheckCircle2, Folder, Cpu, History, Scale } from 'lucide-react';
+import { LayoutDashboard, CheckCircle2, Folder, CalendarDays, Cpu, History, Scale, UserCircle, Shield, Megaphone, Activity } from 'lucide-react';
 import { getCurrentUser } from '@/lib/auth';
 import { clsx } from 'clsx';
 
@@ -38,17 +38,28 @@ export const Sidebar: React.FC<SidebarProps> = ({ pendingCount = 0 }) => {
       show: true,
     },
     {
+      name: 'Calendar',
+      href: '/calendar',
+      icon: CalendarDays,
+      show: true,
+    },
+    {
       name: 'Agents',
       href: '/agents',
       icon: Cpu,
       show: isAttorneyOrAdmin,
     },
+    { name: 'Marketing', href: '/marketing', icon: Megaphone, show: isAttorneyOrAdmin },
     {
       name: 'Audit Log',
       href: '/audit-log',
       icon: History,
       show: isAttorneyOrAdmin,
     },
+    {
+      name: 'Admin', href: '/admin', icon: Shield, show: user?.role === 'admin',
+    },
+    { name: 'System', href: '/system', icon: Activity, show: user?.role === 'admin' },
   ];
 
   return (
@@ -102,10 +113,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ pendingCount = 0 }) => {
         })}
       </nav>
 
-      {/* Footer Info */}
-      <div className="p-4 border-t border-navy-light text-center text-[11px] text-gray-400">
+      <div className="border-t border-navy-light p-4">
+        <Link href="/profile" className="mb-3 flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-300 hover:bg-navy-light hover:text-white">
+          <UserCircle className="h-5 w-5 text-gold" /> Profile
+        </Link>
+        <div className="text-center text-[11px] text-gray-400">
         <p>West Covina, CA</p>
         <p className="mt-0.5 text-[10px] text-gray-500">v1.0.0 — Multi-Agent OS</p>
+        </div>
       </div>
     </aside>
   );

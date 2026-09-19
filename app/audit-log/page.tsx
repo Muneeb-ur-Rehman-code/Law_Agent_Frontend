@@ -10,6 +10,9 @@ import { getAuditLog } from '@/lib/api';
 import { AuditLogResponse, AgentAction } from '@/types';
 import { History, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
+import { Skeleton } from '@/components/ui/Skeleton';
+
+const AGENTS = ['intake', 'email', 'scheduling', 'pre_litigation', 'medical_monitoring', 'litigation', 'lemon_law', 'document', 'client_comms', 'research', 'marketing', 'supervisor'];
 
 export default function AuditLogPage() {
   const router = useRouter();
@@ -20,6 +23,10 @@ export default function AuditLogPage() {
   // Filters
   const [agentFilter, setAgentFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [caseFilter, setCaseFilter] = useState('');
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const user = getCurrentUser();
 
@@ -35,18 +42,23 @@ export default function AuditLogPage() {
     }
 
     loadAuditLog();
-  }, [page, agentFilter, statusFilter, router]);
+  }, [page, agentFilter, statusFilter, dateFrom, dateTo, caseFilter, router]);
 
   const loadAuditLog = async () => {
     try {
       setIsLoading(true);
+      setLoadError(null);
       const data = await getAuditLog(page, 20, {
         agent_name: agentFilter || undefined,
         status: statusFilter || undefined,
+        date_from: dateFrom || undefined,
+        date_to: dateTo ? `${dateTo}T23:59:59` : undefined,
+        case_id: caseFilter ? Number(caseFilter) : undefined,
       });
       setAuditData(data);
     } catch (err) {
       console.error('Failed to load audit log:', err);
+      setLoadError(err instanceof Error ? err.message : 'Unable to load audit log.');
     } finally {
       setIsLoading(false);
     }
@@ -73,17 +85,10 @@ export default function AuditLogPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              <div className="w-44">
-                <Input
-                  placeholder="Filter by agent..."
-                  value={agentFilter}
-                  onChange={(e) => {
-                    setAgentFilter(e.target.value);
-                    setPage(1);
-                  }}
-                  className="py-1 text-xs"
-                />
-              </div>
+              <select value={agentFilter} onChange={(e) => { setAgentFilter(e.target.value); setPage(1); }} className="rounded-lg border px-3 py-1.5 text-xs font-medium text-navy"><option value="">All Agents</option>{AGENTS.map((agent) => <option key={agent} value={agent}>{agent}</option>)}</select>
+              <div className="w-32"><Input type="number" placeholder="Case ID" value={caseFilter} onChange={(e) => { setCaseFilter(e.target.value); setPage(1); }} className="py-1 text-xs" /></div>
+              <Input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(1); }} className="py-1 text-xs" />
+              <Input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(1); }} className="py-1 text-xs" />
 
               <select
                 value={statusFilter}
@@ -95,13 +100,14 @@ export default function AuditLogPage() {
               >
                 <option value="">All Statuses</option>
                 <option value="completed">Completed</option>
-                <option value="pending_approval">Pending Approval</option>
+                  <option value="pending_approval">Pending Approval</option>
                 <option value="rejected">Rejected</option>
               </select>
             </div>
           </div>
 
           {/* Audit Table */}
+          {loadError && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs font-semibold text-red-800">{loadError}</div>}
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
@@ -119,7 +125,7 @@ export default function AuditLogPage() {
                   {isLoading ? (
                     <tr>
                       <td colSpan={6} className="py-12 text-center text-xs text-mid animate-pulse">
-                        Loading audit log records...
+                        <div className="space-y-2 px-4"><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-full" /></div>
                       </td>
                     </tr>
                   ) : auditData?.items && auditData.items.length > 0 ? (
@@ -136,11 +142,10 @@ export default function AuditLogPage() {
             </div>
 
             {/* Pagination Controls */}
-            {auditData && auditData.pages > 1 && (
+            {auditData && auditData.total > 0 && (
               <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between text-xs text-mid bg-gray-50/50">
                 <div>
-                  Page <span className="font-bold text-navy">{auditData.page}</span> of{' '}
-                  <span className="font-bold text-navy">{auditData.pages}</span> ({auditData.total} total items)
+                  Showing <span className="font-bold text-navy">{Math.min((page - 1) * 20 + 1, auditData.total)}-{Math.min(page * 20, auditData.total)}</span> of <span className="font-bold text-navy">{auditData.total}</span> results
                 </div>
 
                 <div className="flex items-center gap-2">

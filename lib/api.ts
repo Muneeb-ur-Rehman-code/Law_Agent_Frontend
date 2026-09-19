@@ -8,6 +8,17 @@ import {
   AgentStatusResponse,
   AuditLogResponse,
   AgentAction,
+  CalendarEventItem,
+  CalendarEventsResponse,
+  PreLitigationStatus,
+  MedicalStatus,
+  LitigationStatus,
+  LemonLawStatus,
+  AdminUser,
+  SearchResult,
+  MarketingReport,
+  HealthResponse,
+  SystemStats,
 } from '@/types';
 import {
   getAccessToken,
@@ -120,9 +131,33 @@ export const getDashboard = async (): Promise<DashboardStats> => {
 };
 
 // ---- Approvals ----
-export const getApprovals = async (): Promise<PendingApproval[]> => {
-  return fetchWithAuth<PendingApproval[]>('/api/approvals');
+export const getApprovals = async (type?: string): Promise<PendingApproval[]> => {
+  const query = type ? `?type=${encodeURIComponent(type)}` : '';
+  return fetchWithAuth<PendingApproval[]>(`/api/approvals${query}`);
 };
+
+export const getDeadlineAlerts = async (): Promise<PendingApproval[]> => {
+  return getApprovals('deadline');
+};
+
+// The calendar endpoint may return an array or an envelope with Google sync metadata.
+export const getCalendarEvents = async (month: string): Promise<CalendarEventsResponse> => {
+  const data = await fetchWithAuth<CalendarEventsResponse | CalendarEventItem[]>(
+    `/api/calendar/events?month=${encodeURIComponent(month)}`
+  );
+  return Array.isArray(data) ? { events: data } : data;
+};
+
+export const getSchedulerStatus = async (): Promise<{
+  last_run?: string | null;
+  last_result?: Record<string, unknown> | null;
+  last_error?: string | null;
+}> => fetchWithAuth('/api/scheduler/status');
+
+export const runMarketingAgent = async (): Promise<MarketingReport> =>
+  fetchWithAuth('/api/marketing/run');
+export const getHealth = async (): Promise<HealthResponse> => fetchWithAuth('/api/health');
+export const getSystemStats = async (): Promise<SystemStats> => fetchWithAuth('/api/system/stats');
 
 export const approveAction = async (id: string): Promise<void> => {
   await fetchWithAuth(`/api/approvals/${id}/approve`, { method: 'POST' });
@@ -145,6 +180,58 @@ export const getCaseById = async (id: number): Promise<SingleCaseDetail> => {
   return fetchWithAuth<SingleCaseDetail>(`/api/cases/${id}`);
 };
 
+export const getPreLitigationStatus = async (caseId: number): Promise<PreLitigationStatus> => {
+  return fetchWithAuth<PreLitigationStatus>(`/api/pre-litigation/status?case_id=${caseId}`);
+};
+
+export const runPreLitigationAgent = async (caseId: number): Promise<Record<string, unknown>> => {
+  return fetchWithAuth<Record<string, unknown>>(`/api/pre-litigation/run?case_id=${caseId}`);
+};
+
+export const getMedicalStatus = async (caseId: number): Promise<MedicalStatus> => {
+  return fetchWithAuth<MedicalStatus>(`/api/medical/status?case_id=${caseId}`);
+};
+
+export const runMedicalCheck = async (): Promise<Record<string, unknown>> => {
+  return fetchWithAuth<Record<string, unknown>>('/api/medical/run');
+};
+
+export const getLitigationStatus = async (caseId: number): Promise<LitigationStatus> => {
+  return fetchWithAuth<LitigationStatus>(`/api/litigation/status?case_id=${caseId}`);
+};
+
+export const runLitigationAgent = async (caseId: number): Promise<Record<string, unknown>> => {
+  return fetchWithAuth<Record<string, unknown>>(`/api/litigation/run?case_id=${caseId}`);
+};
+
+export const getLemonLawStatus = async (caseId: number): Promise<LemonLawStatus> => {
+  return fetchWithAuth<LemonLawStatus>(`/api/lemon-law/status?case_id=${caseId}`);
+};
+
+export const runClientComms = async (caseId: number): Promise<Record<string, unknown>> =>
+  fetchWithAuth(`/api/client-comms/run?case_id=${caseId}`);
+
+export const getAdminUsers = async (): Promise<AdminUser[]> => fetchWithAuth('/api/admin/users');
+export const createAdminUser = async (payload: Record<string, unknown>): Promise<AdminUser> =>
+  fetchWithAuth('/api/admin/users', { method: 'POST', body: JSON.stringify(payload) });
+export const updateAdminUser = async (id: string, payload: Record<string, unknown>): Promise<AdminUser> =>
+  fetchWithAuth(`/api/admin/users/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
+export const resetAdminPassword = async (id: string, newPassword: string): Promise<void> => {
+  await fetchWithAuth(`/api/admin/users/${id}/reset-password`, { method: 'PUT', body: JSON.stringify({ new_password: newPassword }) });
+};
+export const deactivateAdminUser = async (id: string): Promise<void> => {
+  await fetchWithAuth(`/api/admin/users/${id}`, { method: 'DELETE' });
+};
+export const changePassword = async (currentPassword: string, newPassword: string): Promise<void> => {
+  await fetchWithAuth('/api/auth/change-password', { method: 'PUT', body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }) });
+};
+export const searchWorkspace = async (query: string): Promise<SearchResult> =>
+  fetchWithAuth(`/api/search?q=${encodeURIComponent(query)}`);
+
+export const runLemonLawAgent = async (caseId: number): Promise<Record<string, unknown>> => {
+  return fetchWithAuth<Record<string, unknown>>(`/api/lemon-law/run?case_id=${caseId}`);
+};
+
 // ---- Agents ----
 export const getAgentStatus = async (): Promise<AgentStatusResponse> => {
   return fetchWithAuth<AgentStatusResponse>('/api/agents/status');
@@ -161,14 +248,16 @@ export const triggerAgent = async (agentName: string, caseId?: number): Promise<
 export const getAuditLog = async (
   page = 1,
   pageSize = 50,
-  filters?: { case_id?: number; agent_name?: string; status?: string }
+  filters?: { case_id?: number; agent_name?: string; status?: string; date_from?: string; date_to?: string }
 ): Promise<AuditLogResponse> => {
   const params = new URLSearchParams();
   params.append('page', page.toString());
-  params.append('page_size', pageSize.toString());
+  params.append('limit', pageSize.toString());
   if (filters?.case_id) params.append('case_id', filters.case_id.toString());
   if (filters?.agent_name) params.append('agent_name', filters.agent_name);
   if (filters?.status) params.append('status', filters.status);
+  if (filters?.date_from) params.append('date_from', filters.date_from);
+  if (filters?.date_to) params.append('date_to', filters.date_to);
 
   return fetchWithAuth<AuditLogResponse>(`/api/audit-log?${params.toString()}`);
 };

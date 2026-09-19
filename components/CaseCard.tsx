@@ -10,6 +10,8 @@ interface CaseCardProps {
 }
 
 export const CaseCard: React.FC<CaseCardProps> = ({ caseData }) => {
+  const caseType = String(caseData.case_type || '').toLowerCase();
+  const isLemonLaw = caseType.includes('lemon') || caseType === '2';
   return (
     <Link href={`/cases/${caseData.id}`}>
       <Card className="hover:border-navy hover:shadow-md transition-all cursor-pointer group h-full flex flex-col justify-between">
@@ -17,6 +19,9 @@ export const CaseCard: React.FC<CaseCardProps> = ({ caseData }) => {
           <div className="flex items-center justify-between gap-2 mb-3">
             <span className="text-xs font-mono font-bold text-navy bg-navy/5 px-2.5 py-1 rounded-md">
               Case #{caseData.case_number || caseData.id}
+            </span>
+            <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${isLemonLaw ? 'bg-gold-light text-amber-900' : 'bg-blue-100 text-blue-800'}`}>
+              {isLemonLaw ? 'LL' : 'PI'}
             </span>
             {caseData.closed_date ? (
               <Badge variant="idle">Closed</Badge>
